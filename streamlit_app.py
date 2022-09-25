@@ -1,39 +1,32 @@
 import streamlit as st
-from streamlit_chat import message as st_message
-from transformers import BlenderbotTokenizer
-from transformers import BlenderbotForConditionalGeneration
+from utils import PrepProcesor, columns 
 
+import numpy as np
+import pandas as pd
+import joblib
 
-@st.experimental_singleton
-def get_models():
-    # it may be necessary for other frameworks to cache the model
-    # seems pytorch keeps an internal state of the conversation
-    model_name = "facebook/blenderbot-400M-distill"
-    tokenizer = BlenderbotTokenizer.from_pretrained(model_name)
-    model = BlenderbotForConditionalGeneration.from_pretrained(model_name)
-    return tokenizer, model
+model = joblib.load('xgbpipe.joblib')
+st.title('Did they survive? :ship:')
+# PassengerId,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embarked
+passengerid = st.text_input("Input Passenger ID", '123456') 
+pclass = st.selectbox("Choose class", [1,2,3])
+name  = st.text_input("Input Passenger Name", 'John Smith')
+sex = st.select_slider("Choose sex", ['male','female'])
+age = st.slider("Choose age",0,100)
+sibsp = st.slider("Choose siblings",0,10)
+parch = st.slider("Choose parch",0,2)
+ticket = st.text_input("Input Ticket Number", "12345") 
+fare = st.number_input("Input Fare Price", 0,1000)
+cabin = st.text_input("Input Cabin", "C52") 
+embarked = st.select_slider("Did they Embark?", ['S','C','Q'])
 
+def predict(): 
+    row = np.array([passengerid,pclass,name,sex,age,sibsp,parch,ticket,fare,cabin,embarked]) 
+    X = pd.DataFrame([row], columns = columns)
+    prediction = model.predict(X)
+    if prediction[0] == 1: 
+        st.success('Passenger Survived :thumbsup:')
+    else: 
+        st.error('Passenger did not Survive :thumbsdown:') 
 
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-st.title("Hello Chatbot")
-
-
-def generate_answer():
-    tokenizer, model = get_models()
-    user_message = st.session_state.input_text
-    inputs = tokenizer(st.session_state.input_text, return_tensors="pt")
-    result = model.generate(**inputs)
-    message_bot = tokenizer.decode(
-        result[0], skip_special_tokens=True
-    )  # .replace("<s>", "").replace("</s>", "")
-
-    st.session_state.history.append({"message": user_message, "is_user": True})
-    st.session_state.history.append({"message": message_bot, "is_user": False})
-
-
-st.text_input("Talk to the bot", key="input_text", on_change=generate_answer)
-
-for chat in st.session_state.history:
-    st_message(**chat)  # unpacking
+trigger = st.button('Predict', on_click=predict)
